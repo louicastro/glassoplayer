@@ -1,7 +1,11 @@
 package com.liquidglass.music.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,21 +15,29 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,17 +50,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.filled.Policy
 import com.liquidglass.music.service.SleepTimerState
 import com.liquidglass.music.ui.components.LiquidGlassBox
+import com.liquidglass.music.ui.components.LiquidGlassCard
+import com.liquidglass.music.ui.components.LiquidGlassPill
+import com.liquidglass.music.ui.theme.LiquidAccentPink
 import com.liquidglass.music.ui.theme.LiquidAccentPrimary
+import com.liquidglass.music.ui.theme.LiquidRadii
+import com.liquidglass.music.ui.theme.LiquidSpacing
+import com.liquidglass.music.ui.theme.LocalReducedMotion
+import com.liquidglass.music.ui.theme.TextDarkPrimary
+import com.liquidglass.music.ui.theme.TextDarkSecondary
+import com.liquidglass.music.ui.theme.TextLightPrimary
+import com.liquidglass.music.ui.theme.TextLightSecondary
 
 @Composable
 fun SettingsScreen(
@@ -60,69 +81,145 @@ fun SettingsScreen(
     onClearArtworkCache: () -> Unit,
     onClearLyricCache: () -> Unit,
     onRebuildLibraryIndex: () -> Unit,
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
+    val isReducedMotion = LocalReducedMotion.current
+
     var showCodecDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showClearLyricsConfirm by remember { mutableStateOf(false) }
+    var showClearArtworkConfirm by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = LiquidSpacing.xl)
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(LiquidSpacing.lg))
 
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
-        )
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = if (isDark) Color.White else Color.Black
+                    )
+                }
+                Spacer(Modifier.width(LiquidSpacing.sm))
+            }
+            Column {
+                Text(
+                    text = "Settings",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.6).sp
+                    ),
+                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                )
+                Text(
+                    text = "Preferences and application controls",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isDark) TextDarkSecondary else TextLightSecondary
+                )
+            }
+        }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(LiquidSpacing.md))
 
         LazyColumn(
-            contentPadding = PaddingValues(bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(bottom = 140.dp),
+            verticalArrangement = Arrangement.spacedBy(LiquidSpacing.lg)
         ) {
-            // Sleep Timer Section
+            // 1. Appearance Section
             item {
-                Text("Sleep Timer", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
-                LiquidGlassBox(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                SectionTitle(title = "Appearance", icon = Icons.Default.Palette)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(LiquidSpacing.md)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Bedtime, contentDescription = null, tint = LiquidAccentPrimary)
-                                Spacer(Modifier.size(10.dp))
-                                Text("Sleep Timer Status", fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "Liquid Glass Theme",
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
+                            LiquidGlassPill {
+                                Text(
+                                    if (isDark) "Dark Glass" else "Light Glass",
+                                    fontSize = 12.sp,
+                                    color = LiquidAccentPrimary
+                                )
                             }
+                        }
+                        Spacer(Modifier.height(LiquidSpacing.xs))
+                        Text(
+                            "Theme automatically adapts to your system display mode.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isDark) TextDarkSecondary else TextLightSecondary
+                        )
+
+                        if (isReducedMotion) {
+                            Spacer(Modifier.height(LiquidSpacing.sm))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                LiquidGlassPill(tintColor = Color(0x33F59E0B)) {
+                                    Text("Reduced Motion Active", color = Color(0xFFF59E0B), fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Playback / Sleep Timer Section
+            item {
+                SectionTitle(title = "Playback & Sleep Timer", icon = Icons.Default.Bedtime)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(LiquidSpacing.md)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Sleep Timer",
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
                             if (sleepTimerState.isActive) {
-                                val label = if (sleepTimerState.isEndOfTrack) "End of track" else "${sleepTimerState.remainingSeconds / 60}m ${sleepTimerState.remainingSeconds % 60}s"
-                                Text(label, color = LiquidAccentPrimary, fontWeight = FontWeight.Bold)
+                                val label = if (sleepTimerState.isEndOfTrack) "End of Track" else "${sleepTimerState.remainingSeconds / 60}m ${sleepTimerState.remainingSeconds % 60}s"
+                                LiquidGlassPill(tintColor = LiquidAccentPrimary.copy(0.2f)) {
+                                    Text(label, color = LiquidAccentPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
                             } else {
-                                Text("Off", color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
+                                Text("Inactive", color = if (isDark) TextDarkSecondary else TextLightSecondary, fontSize = 13.sp)
                             }
                         }
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(LiquidSpacing.sm))
 
                         // Presets
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(LiquidSpacing.xs)
                         ) {
                             listOf(15, 30, 45, 60).forEach { mins ->
                                 FilterChip(
                                     selected = false,
                                     onClick = { onStartSleepTimer(mins) },
-                                    label = { Text("${mins}m") }
+                                    label = { Text("${mins}m") },
+                                    colors = FilterChipDefaults.filterChipColors()
                                 )
                             }
                             FilterChip(
@@ -133,216 +230,360 @@ fun SettingsScreen(
                         }
 
                         if (sleepTimerState.isActive) {
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(LiquidSpacing.xs))
                             TextButton(
                                 onClick = onCancelSleepTimer,
-                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF4E6E))
+                                colors = ButtonDefaults.textButtonColors(contentColor = LiquidAccentPink)
                             ) {
-                                Text("Cancel Timer")
+                                Text("Cancel Active Timer")
                             }
                         }
                     }
                 }
             }
 
-            // Audio Effects Link
+            // 3. Equalizer Section
             item {
-                Text("Audio & Playback", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
-                LiquidGlassBox(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onOpenEqualizer),
-                    shape = RoundedCornerShape(16.dp)
+                SectionTitle(title = "Audio & Equalizer", icon = Icons.Default.Equalizer)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onOpenEqualizer
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(LiquidSpacing.md),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Equalizer, contentDescription = null, tint = LiquidAccentPrimary)
-                            Spacer(Modifier.size(12.dp))
-                            Text("Equalizer & Audio Effects", fontWeight = FontWeight.SemiBold)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Graphic Equalizer & DSP Effects",
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
+                            Text(
+                                "5-band frequency tuning, bass boost, virtualizer, and loudness gain.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isDark) TextDarkSecondary else TextLightSecondary
+                            )
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = if (isDark) Color.White.copy(0.6f) else Color.Black.copy(0.6f)
+                        )
                     }
                 }
             }
 
-            // Storage Management
+            // 4. Lyrics Section
             item {
-                Text("Storage Management", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
-                LiquidGlassBox(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                SectionTitle(title = "Synchronized Lyrics", icon = Icons.Default.Lyrics)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(LiquidSpacing.md)) {
+                        Text(
+                            "Offline Lyric Syncing",
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isDark) TextDarkPrimary else TextLightPrimary
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Glassoplayer reads embedded SYLT/USLT tags and matching sidecar .lrc files in the audio directory.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isDark) TextDarkSecondary else TextLightSecondary
+                        )
+                        Spacer(Modifier.height(LiquidSpacing.sm))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(onClick = onClearArtworkCache)
-                                .padding(vertical = 4.dp),
+                                .clip(RoundedCornerShape(LiquidRadii.sm))
+                                .clickable { showClearLyricsConfirm = true }
+                                .padding(vertical = LiquidSpacing.xs),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Clear Artwork Cache")
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(0.6f))
+                            Text(
+                                "Clear Cached Lyrics",
+                                color = LiquidAccentPink,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = LiquidAccentPink, modifier = Modifier.size(20.dp))
                         }
+                    }
+                }
+            }
+
+            // 5. Music Library Section
+            item {
+                SectionTitle(title = "Music Library Index", icon = Icons.Default.MusicNote)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(LiquidSpacing.md)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(onClick = onClearLyricCache)
-                                .padding(vertical = 4.dp),
+                                .clickable(onClick = onRebuildLibraryIndex),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Clear Lyrics Cache")
-                            Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(0.6f))
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(onClick = onRebuildLibraryIndex)
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Rebuild Library Index")
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Rebuild Audio Library Index",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                                )
+                                Text(
+                                    "Rescans device storage for newly imported songs, albums, and artists.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isDark) TextDarkSecondary else TextLightSecondary
+                                )
+                            }
                             Icon(Icons.Default.Refresh, contentDescription = null, tint = LiquidAccentPrimary)
                         }
-                    }
-                }
-            }
 
-            // Privacy & Airplane Mode Compliance
-            item {
-                Text("Privacy & Offline Architecture", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
-                LiquidGlassBox(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF4ECCA3))
-                            Spacer(Modifier.size(10.dp))
-                            Text("100% Offline by Design", fontWeight = FontWeight.Bold, color = Color(0xFF4ECCA3))
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = "No internet permissions declared in AndroidManifest. No tracking, telemetry, or analytics. Works in Airplane Mode without accounts or subscription.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface.copy(0.75f))
-                        )
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(LiquidSpacing.md))
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { showPrivacyDialog = true }
-                                .padding(vertical = 4.dp),
+                                .clickable { showCodecDialog = true },
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Policy, contentDescription = null, tint = LiquidAccentPrimary, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.size(8.dp))
-                                Text("Privacy Policy & Data Safety", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                            Column {
+                                Text(
+                                    "Supported Audio Codecs",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                                )
+                                Text(
+                                    "Inspect MP3, FLAC, AAC, WAV, and OGG compatibility.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isDark) TextDarkSecondary else TextLightSecondary
+                                )
                             }
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(20.dp))
-                        }
-                    }
-                }
-            }
-
-            // Codec Information
-            item {
-                Text("Audio Codecs", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
-                LiquidGlassBox(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showCodecDialog = true },
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Info, contentDescription = null, tint = LiquidAccentPrimary)
-                            Spacer(Modifier.size(12.dp))
-                            Text("Codec Support Matrix", fontWeight = FontWeight.SemiBold)
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null)
                     }
                 }
             }
-        }
 
-        // Privacy Policy & Data Safety Dialog
-        if (showPrivacyDialog) {
-            androidx.compose.material3.AlertDialog(
-                onDismissRequest = { showPrivacyDialog = false },
-                title = { Text("Privacy Policy & Data Safety") },
-                text = {
-                    Column(modifier = Modifier.padding(4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Glassoplayer Privacy Commitment:", fontWeight = FontWeight.Bold, color = Color(0xFF4ECCA3))
+            // 6. Storage & Cache Section
+            item {
+                SectionTitle(title = "Storage & Cache", icon = Icons.Default.Storage)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(LiquidSpacing.md)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showClearArtworkConfirm = true },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Clear Artwork Cache",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = LiquidAccentPink
+                                )
+                                Text(
+                                    "Purges transient cached bitmaps. Does not delete any audio files or playlists.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isDark) TextDarkSecondary else TextLightSecondary
+                                )
+                            }
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = LiquidAccentPink)
+                        }
+                    }
+                }
+            }
+
+            // 7. Privacy & Data Safety Section
+            item {
+                SectionTitle(title = "Privacy & Data Safety", icon = Icons.Default.Security)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(LiquidSpacing.md)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showPrivacyDialog = true },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "100% Offline Guarantee",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                                )
+                                Text(
+                                    "Zero analytics, trackers, or network access. Your music never leaves your device.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isDark) TextDarkSecondary else TextLightSecondary
+                                )
+                            }
+                            Icon(Icons.Default.Policy, contentDescription = null, tint = LiquidAccentPrimary)
+                        }
+                    }
+                }
+            }
+
+            // 8. About & Licenses Section
+            item {
+                SectionTitle(title = "About Glassoplayer", icon = Icons.Default.Info)
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(LiquidSpacing.md)) {
                         Text(
-                            "• 100% Offline: Zero internet permissions requested or declared in AndroidManifest.xml.\n\n" +
-                            "• Zero Data Collection: No personal data, telemetry, analytics, crash logs, or identifiers are collected, tracked, or shared with third parties.\n\n" +
-                            "• Local Storage Only: Audio and storage permissions are strictly utilized on-device to index audio files and lyrics.\n\n" +
-                            "• Android System Backup: If the user enables Android OS cloud backup in device settings, Android OS encrypts app preferences and local playlists in Google Drive according to the user's Android Google account settings; Glassoplayer does not operate any cloud servers.",
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp
+                            "Glassoplayer v1.0.0",
+                            fontWeight = FontWeight.Bold,
+                            color = if (isDark) TextDarkPrimary else TextLightPrimary
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "Built with Jetpack Compose, Media3 ExoPlayer, and Room for high-fidelity offline music playback.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isDark) TextDarkSecondary else TextLightSecondary
                         )
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/louicastro/glassoplayer/blob/main/PRIVACY_POLICY.md"))
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            // Fallback
-                        }
-                    }) {
-                        Text("Online Policy (GitHub)")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showPrivacyDialog = false }) {
-                        Text("Close")
-                    }
                 }
-            )
+            }
         }
+    }
 
-        // Codec Support Dialog
-        if (showCodecDialog) {
-            androidx.compose.material3.AlertDialog(
-                onDismissRequest = { showCodecDialog = false },
-                title = { Text("Audio Codec Matrix") },
-                text = {
-                    Column(modifier = Modifier.padding(4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Tier 1 (Verified Native Support):", fontWeight = FontWeight.Bold, color = Color(0xFF4ECCA3))
-                        Text("• MP3 (MPEG-1/2 Audio Layer 3)\n• AAC / M4A (Advanced Audio Coding)\n• FLAC (Free Lossless Audio Codec)\n• ALAC (Apple Lossless Audio Codec)\n• WAV (PCM 16/24-bit)\n• AIFF (Audio Interchange File Format)\n• Ogg Vorbis\n• Opus\n• MP4 & MKV audio containers", fontSize = 13.sp)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Tier 2 (Supported via Media3/Platform):", fontWeight = FontWeight.Bold)
-                        Text("• AC-3 / E-AC-3\n• DTS\n• AMR\n• Speex", fontSize = 13.sp)
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showCodecDialog = false }) {
-                        Text("Close")
-                    }
+    // Codec Dialog
+    if (showCodecDialog) {
+        AlertDialog(
+            onDismissRequest = { showCodecDialog = false },
+            title = { Text("Supported Audio Formats", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(LiquidSpacing.xs)) {
+                    Text("• MP3 (MPEG Audio Layer 3)")
+                    Text("• FLAC (Free Lossless Audio Codec)")
+                    Text("• AAC / M4A (Advanced Audio Coding)")
+                    Text("• OGG Vorbis / Opus")
+                    Text("• WAV (PCM / Waveform Audio)")
                 }
-            )
-        }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCodecDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
+    // Privacy Dialog
+    if (showPrivacyDialog) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyDialog = false },
+            title = { Text("Privacy & Data Safety", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(LiquidSpacing.sm)) {
+                    Text(
+                        "Glassoplayer is an offline-first music player that does not request or possess the android.permission.INTERNET permission.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "No personal information, identifiers, usage logs, or audio files are ever collected, transmitted, or shared.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("https://github.com/louicastro/glassoplayer/blob/main/PRIVACY_POLICY.md")
+                        )
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = LiquidAccentPrimary)
+                ) {
+                    Text("View Online Policy")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPrivacyDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
+    // Clear Lyrics Confirmation Dialog
+    if (showClearLyricsConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearLyricsConfirm = false },
+            title = { Text("Clear Lyric Cache?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("This will clear the cached database copies of lyrics. Your original audio files and .lrc files will remain completely untouched.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearLyricCache()
+                        showClearLyricsConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = LiquidAccentPink)
+                ) {
+                    Text("Clear")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearLyricsConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Clear Artwork Confirmation Dialog
+    if (showClearArtworkConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearArtworkConfirm = false },
+            title = { Text("Clear Artwork Cache?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("This will purge locally cached artwork thumbnails. They will reload automatically from your audio files upon playback.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearArtworkCache()
+                        showClearArtworkConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = LiquidAccentPink)
+                ) {
+                    Text("Clear Cache")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearArtworkConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SectionTitle(title: String, icon: ImageVector) {
+    val isDark = isSystemInDarkTheme()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(LiquidSpacing.xs)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = LiquidAccentPrimary,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.2).sp
+            ),
+            color = if (isDark) TextDarkPrimary else TextLightPrimary
+        )
     }
 }

@@ -1,7 +1,7 @@
 package com.liquidglass.music.lyrics
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -51,7 +49,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.liquidglass.music.ui.components.LiquidGlassBox
+import com.liquidglass.music.ui.components.LiquidGlassCard
+import com.liquidglass.music.ui.theme.GlassDarkBackdrop
+import com.liquidglass.music.ui.theme.GlassLightBackdrop
 import com.liquidglass.music.ui.theme.LiquidAccentPrimary
+import com.liquidglass.music.ui.theme.LiquidRadii
+import com.liquidglass.music.ui.theme.LiquidSpacing
+import com.liquidglass.music.ui.theme.TextDarkPrimary
+import com.liquidglass.music.ui.theme.TextDarkSecondary
+import com.liquidglass.music.ui.theme.TextLightPrimary
+import com.liquidglass.music.ui.theme.TextLightSecondary
 
 @Composable
 fun LyricsEditorSheet(
@@ -62,6 +69,7 @@ fun LyricsEditorSheet(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Tap to Stamp, 1 = Raw LRC Editor
     var rawTextContent by remember {
         mutableStateOf(LrcParser.serializeToLrc(editorLines))
@@ -70,14 +78,14 @@ fun LyricsEditorSheet(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF0D0F18))
+            .background(if (isDark) GlassDarkBackdrop else GlassLightBackdrop)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(LiquidSpacing.lg)
         ) {
             // Top Bar
             Row(
@@ -85,30 +93,53 @@ fun LyricsEditorSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onCancel) {
-                    Icon(Icons.Default.Close, contentDescription = "Cancel", tint = Color.White)
+                IconButton(
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(if (isDark) Color(0x26FFFFFF) else Color(0x1A000000))
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Cancel",
+                        tint = if (isDark) Color.White else Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
 
                 Text(
-                    text = "Lyrics Editor",
+                    text = "Lyrics Timing Editor",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                        letterSpacing = (-0.3).sp
+                    ),
+                    color = if (isDark) TextDarkPrimary else TextLightPrimary
                 )
 
-                IconButton(onClick = onSaveEdits) {
-                    Icon(Icons.Default.Check, contentDescription = "Save", tint = LiquidAccentPrimary)
+                IconButton(
+                    onClick = onSaveEdits,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(LiquidAccentPrimary)
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Save",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(LiquidSpacing.md))
 
             // Tabs: Tap to Stamp vs Raw Text Editor
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
-                contentColor = Color.White,
+                contentColor = LiquidAccentPrimary,
                 indicator = { tabPositions ->
                     TabRowDefaults.SecondaryIndicator(
                         Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
@@ -119,7 +150,13 @@ fun LyricsEditorSheet(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Tap to Stamp") }
+                    text = {
+                        Text(
+                            "Tap to Stamp",
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selectedTab == 0) LiquidAccentPrimary else (if (isDark) TextDarkSecondary else TextLightSecondary)
+                        )
+                    }
                 )
                 Tab(
                     selected = selectedTab == 1,
@@ -127,35 +164,42 @@ fun LyricsEditorSheet(
                         rawTextContent = LrcParser.serializeToLrc(editorLines)
                         selectedTab = 1
                     },
-                    text = { Text("Raw LRC Text") }
+                    text = {
+                        Text(
+                            "Raw LRC Text",
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selectedTab == 1) LiquidAccentPrimary else (if (isDark) TextDarkSecondary else TextLightSecondary)
+                        )
+                    }
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(LiquidSpacing.md))
 
             if (selectedTab == 0) {
                 // Real-time "Tap to Stamp" mode
                 Text(
-                    text = "Tap the 'Stamp' button on each line as the audio reaches it:",
-                    style = MaterialTheme.typography.bodySmall.copy(color = Color.White.copy(alpha = 0.7f)),
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    text = "Tap 'Stamp' on each line as audio reaches it to record timestamps:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isDark) TextDarkSecondary else TextLightSecondary,
+                    modifier = Modifier.padding(bottom = LiquidSpacing.sm)
                 )
 
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(LiquidSpacing.sm)
                 ) {
                     itemsIndexed(editorLines) { index, line ->
-                        LiquidGlassBox(
+                        LiquidGlassCard(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp)
+                            shape = RoundedCornerShape(LiquidRadii.md)
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    .padding(horizontal = LiquidSpacing.md, vertical = LiquidSpacing.sm + 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -169,33 +213,37 @@ fun LyricsEditorSheet(
                                     Text(
                                         text = formattedTime,
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            color = if (line.timestampMs > 0) LiquidAccentPrimary else Color.White.copy(alpha = 0.5f),
+                                            color = if (line.timestampMs > 0) LiquidAccentPrimary else (if (isDark) Color(0x66FFFFFF) else Color(0x66000000)),
                                             fontWeight = FontWeight.Bold
                                         )
                                     )
+                                    Spacer(Modifier.height(2.dp))
                                     Text(
                                         text = line.text,
-                                        style = MaterialTheme.typography.bodyLarge.copy(color = Color.White)
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                        color = if (isDark) TextDarkPrimary else TextLightPrimary
                                     )
                                 }
 
-                                Spacer(Modifier.width(8.dp))
+                                Spacer(Modifier.width(LiquidSpacing.sm))
 
                                 // Stamp button
                                 Button(
                                     onClick = { onStampLine(index, currentPlaybackPositionMs) },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (line.timestampMs > 0) Color(0x336C7CFF) else LiquidAccentPrimary
+                                        containerColor = if (line.timestampMs > 0) LiquidAccentPrimary.copy(alpha = 0.25f) else LiquidAccentPrimary,
+                                        contentColor = if (line.timestampMs > 0) LiquidAccentPrimary else Color.White
                                     ),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(LiquidRadii.pill),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.TouchApp,
                                         contentDescription = "Stamp",
                                         modifier = Modifier.size(16.dp)
                                     )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("Stamp")
+                                    Spacer(Modifier.width(LiquidSpacing.xs))
+                                    Text("Stamp", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
                         }
@@ -210,10 +258,10 @@ fun LyricsEditorSheet(
                         .fillMaxWidth()
                         .weight(1f),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = if (isDark) TextDarkPrimary else TextLightPrimary,
+                        unfocusedTextColor = if (isDark) TextDarkPrimary else TextLightPrimary,
                         focusedBorderColor = LiquidAccentPrimary,
-                        unfocusedBorderColor = Color(0x33FFFFFF)
+                        unfocusedBorderColor = if (isDark) Color(0x33FFFFFF) else Color(0x33000000)
                     ),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
                 )

@@ -1,10 +1,15 @@
 package com.liquidglass.music.ui.player
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -38,13 +44,14 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -59,7 +66,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,7 +73,21 @@ import coil.compose.AsyncImage
 import com.liquidglass.music.data.model.TrackEntity
 import com.liquidglass.music.playback.RepeatMode
 import com.liquidglass.music.ui.components.LiquidGlassBox
+import com.liquidglass.music.ui.components.LiquidGlassButton
+import com.liquidglass.music.ui.components.LiquidGlassPill
+import com.liquidglass.music.ui.theme.GlassDarkBackdrop
+import com.liquidglass.music.ui.theme.GlassLightBackdrop
+import com.liquidglass.music.ui.theme.LiquidAccentPink
 import com.liquidglass.music.ui.theme.LiquidAccentPrimary
+import com.liquidglass.music.ui.theme.LiquidElevation
+import com.liquidglass.music.ui.theme.LiquidMotion
+import com.liquidglass.music.ui.theme.LiquidRadii
+import com.liquidglass.music.ui.theme.LiquidSpacing
+import com.liquidglass.music.ui.theme.LocalReducedMotion
+import com.liquidglass.music.ui.theme.TextDarkPrimary
+import com.liquidglass.music.ui.theme.TextDarkSecondary
+import com.liquidglass.music.ui.theme.TextLightPrimary
+import com.liquidglass.music.ui.theme.TextLightSecondary
 import com.liquidglass.music.ui.util.ExtractedColors
 
 @Composable
@@ -90,10 +110,14 @@ fun NowPlayingSheet(
     onSetSpeed: (Float) -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
+    onOpenEqualizer: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (track == null) return
+
+    val isDark = isSystemInDarkTheme()
+    val isReducedMotion = LocalReducedMotion.current
 
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPositionMs by remember { mutableFloatStateOf(currentPositionMs.toFloat()) }
@@ -102,12 +126,23 @@ fun NowPlayingSheet(
     val displayPosition = if (isScrubbing) scrubPositionMs.toLong() else currentPositionMs
     val remainingMs = (durationMs - displayPosition).coerceAtLeast(0L)
 
-    // Dynamic gradient background derived from dominant artwork colors
+    // Animated colors derived from artwork palette
+    val animDominant by animateColorAsState(
+        targetValue = paletteColors.dominant,
+        animationSpec = tween(if (isReducedMotion) 0 else 450),
+        label = "animDominant"
+    )
+    val animSurfaceTint by animateColorAsState(
+        targetValue = paletteColors.surfaceTint,
+        animationSpec = tween(if (isReducedMotion) 0 else 450),
+        label = "animSurfaceTint"
+    )
+
     val bgBrush = Brush.verticalGradient(
         colors = listOf(
-            paletteColors.dominant,
-            paletteColors.surfaceTint,
-            Color(0xFF0C0D14)
+            animDominant.copy(alpha = if (isDark) 0.65f else 0.35f),
+            animSurfaceTint.copy(alpha = if (isDark) 0.40f else 0.20f),
+            if (isDark) GlassDarkBackdrop else GlassLightBackdrop
         )
     )
 
@@ -121,75 +156,66 @@ fun NowPlayingSheet(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = LiquidSpacing.xl)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top Bar with Dismiss Chevron
+            Spacer(Modifier.height(LiquidSpacing.xs))
+
+            // Top Bar: Dismiss Chevron, Format Badge
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(vertical = LiquidSpacing.xs),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(if (isDark) Color(0x26FFFFFF) else Color(0x1A000000))
                 ) {
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "Dismiss",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
+                        tint = if (isDark) Color.White else Color.Black,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
 
-                // Audio Quality Badge
-                LiquidGlassBox(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    blurRadius = 12.dp
+                // Audio Format & Quality Pill
+                LiquidGlassPill(
+                    tintColor = LiquidAccentPrimary.copy(alpha = if (isDark) 0.22f else 0.14f)
                 ) {
-                    val qualityText = buildString {
-                        append(track.format)
-                        if (track.bitrate > 0) append(" • ${track.bitrate} kbps")
-                        if (track.sampleRate > 0) append(" • ${track.sampleRate / 1000}kHz")
-                    }
                     Text(
-                        text = qualityText,
+                        text = track.format.uppercase(),
                         style = MaterialTheme.typography.labelSmall.copy(
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 11.sp
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.5.sp
                         ),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = onToggleFavorite,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (track.isFavorite) Color(0xFFFF4E6E) else Color.White,
-                        modifier = Modifier.size(26.dp)
+                        color = LiquidAccentPrimary
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(LiquidSpacing.md))
 
-            // Large Album Artwork with Liquid Glass Frame
-            LiquidGlassBox(
+            // Center Hero Artwork
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .shadow(16.dp, RoundedCornerShape(28.dp)),
-                shape = RoundedCornerShape(28.dp),
-                blurRadius = 0.dp // Clear artwork
+                    .shadow(
+                        elevation = 20.dp,
+                        shape = RoundedCornerShape(LiquidRadii.xxl),
+                        ambientColor = if (isDark) animDominant.copy(alpha = 0.5f) else Color(0x33000000),
+                        spotColor = if (isDark) animDominant else Color(0x4D000000)
+                    )
+                    .clip(RoundedCornerShape(LiquidRadii.xxl))
+                    .background(if (isDark) Color(0x33FFFFFF) else Color(0x1A000000)),
+                contentAlignment = Alignment.Center
             ) {
                 if (track.artworkUri != null) {
                     AsyncImage(
@@ -199,112 +225,130 @@ fun NowPlayingSheet(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color(0x22FFFFFF)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.size(80.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = if (isDark) Color.White.copy(0.6f) else Color.Black.copy(0.6f),
+                        modifier = Modifier.size(96.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(Modifier.height(LiquidSpacing.xxl))
 
-            // Title & Artist
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "${track.artist} — ${track.album}",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = Color.White.copy(alpha = 0.75f)
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Seek Bar
-            Slider(
-                value = if (durationMs > 0) displayPosition.toFloat() else 0f,
-                onValueChange = {
-                    isScrubbing = true
-                    scrubPositionMs = it
-                },
-                onValueChangeFinished = {
-                    onSeekTo(scrubPositionMs.toLong())
-                    isScrubbing = false
-                },
-                valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.25f)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Time Labels (Elapsed and Remaining)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = formatMs(displayPosition),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color.White.copy(alpha = 0.65f),
-                        fontSize = 12.sp
-                    )
-                )
-                Text(
-                    text = "-${formatMs(remainingMs)}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color.White.copy(alpha = 0.65f),
-                        fontSize = 12.sp
-                    )
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Transport Controls (Shuffle, Prev, Play/Pause, Next, Repeat)
+            // Title, Artist & Favorite Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track.title,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.3).sp
+                        ),
+                        color = if (isDark) TextDarkPrimary else TextLightPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(LiquidSpacing.xxs))
+                    Text(
+                        text = "${track.artist} — ${track.album}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = if (isDark) TextDarkSecondary else TextLightSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Favorite Toggle Button
+                IconButton(
+                    onClick = onToggleFavorite,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (track.isFavorite) "Favorited" else "Not Favorited",
+                        tint = if (track.isFavorite) LiquidAccentPink else (if (isDark) Color(0x99FFFFFF) else Color(0x992B3045)),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(LiquidSpacing.lg))
+
+            // Precision Seek Bar
+            Column(modifier = Modifier.fillMaxWidth()) {
+                val sliderValue = if (durationMs > 0) {
+                    displayPosition.toFloat().coerceIn(0f, durationMs.toFloat())
+                } else 0f
+
+                Slider(
+                    value = sliderValue,
+                    onValueChange = {
+                        isScrubbing = true
+                        scrubPositionMs = it
+                    },
+                    onValueChangeFinished = {
+                        onSeekTo(scrubPositionMs.toLong())
+                        isScrubbing = false
+                    },
+                    valueRange = 0f..(if (durationMs > 0) durationMs.toFloat() else 1f),
+                    colors = SliderDefaults.colors(
+                        thumbColor = LiquidAccentPrimary,
+                        activeTrackColor = LiquidAccentPrimary,
+                        inactiveTrackColor = if (isDark) Color(0x33FFFFFF) else Color(0x26000000)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Time indicators (Elapsed & Remaining)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val elMin = (displayPosition / 1000) / 60
+                    val elSec = (displayPosition / 1000) % 60
+                    Text(
+                        text = String.format("%d:%02d", elMin, elSec),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = if (isDark) TextDarkSecondary else TextLightSecondary
+                    )
+
+                    val remMin = (remainingMs / 1000) / 60
+                    val remSec = (remainingMs / 1000) % 60
+                    Text(
+                        text = String.format("-%d:%02d", remMin, remSec),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = if (isDark) TextDarkSecondary else TextLightSecondary
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(LiquidSpacing.lg))
+
+            // Primary Playback Controls: Shuffle, Previous, Play/Pause, Next, Repeat
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Shuffle Button
                 IconButton(
                     onClick = onToggleShuffle,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(if (isShuffle) LiquidAccentPrimary.copy(alpha = if (isDark) 0.25f else 0.16f) else Color.Transparent)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (isShuffle) paletteColors.accent else Color.White.copy(alpha = 0.6f),
+                        tint = if (isShuffle) LiquidAccentPrimary else (if (isDark) Color(0x99FFFFFF) else Color(0x992B3045)),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -312,209 +356,229 @@ fun NowPlayingSheet(
                 // Previous Button
                 IconButton(
                     onClick = onSkipPrevious,
-                    modifier = Modifier.size(54.dp)
+                    modifier = Modifier.size(52.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
+                        contentDescription = "Previous Track",
+                        tint = if (isDark) Color.White else Color(0xFF131524),
+                        modifier = Modifier.size(38.dp)
                     )
                 }
 
-                // Circular Liquid Glass Play/Pause Button
+                // Center Play/Pause Floating Liquid Orb
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(74.dp)
+                        .shadow(12.dp, CircleShape, ambientColor = LiquidAccentPrimary.copy(0.4f), spotColor = LiquidAccentPrimary)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(LiquidAccentPrimary)
                         .clickable(onClick = onTogglePlayPause),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = Color(0xFF0F111A),
-                        modifier = Modifier.size(38.dp)
-                    )
+                    AnimatedContent(
+                        targetState = isPlaying,
+                        transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(150)) },
+                        label = "nowPlayingPlayPause"
+                    ) { playing ->
+                        Icon(
+                            imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (playing) "Pause" else "Play",
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
                 }
 
                 // Next Button
                 IconButton(
                     onClick = onSkipNext,
-                    modifier = Modifier.size(54.dp)
+                    modifier = Modifier.size(52.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
+                        contentDescription = "Next Track",
+                        tint = if (isDark) Color.White else Color(0xFF131524),
+                        modifier = Modifier.size(38.dp)
                     )
                 }
 
                 // Repeat Button (OFF, ALL, ONE)
                 IconButton(
                     onClick = onCycleRepeat,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(if (repeatMode != RepeatMode.OFF) LiquidAccentPrimary.copy(alpha = if (isDark) 0.25f else 0.16f) else Color.Transparent)
                 ) {
-                    val (icon, tint) = when (repeatMode) {
-                        RepeatMode.OFF -> Icons.Default.Repeat to Color.White.copy(alpha = 0.6f)
-                        RepeatMode.ALL -> Icons.Default.Repeat to paletteColors.accent
-                        RepeatMode.ONE -> Icons.Default.RepeatOne to paletteColors.accent
-                    }
                     Icon(
-                        imageVector = icon,
-                        contentDescription = "Repeat",
-                        tint = tint,
+                        imageVector = if (repeatMode == RepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                        contentDescription = "Repeat: $repeatMode",
+                        tint = if (repeatMode != RepeatMode.OFF) LiquidAccentPrimary else (if (isDark) Color(0x99FFFFFF) else Color(0x992B3045)),
                         modifier = Modifier.size(24.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(Modifier.height(LiquidSpacing.xxl))
 
-            // Bottom Actions: Speed Pill, Lyrics Button, Queue Button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+            // Bottom Liquid Action Bar: Lyrics, Queue, Equalizer, Speed
+            LiquidGlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(LiquidRadii.xl),
+                elevation = LiquidElevation.subtle
             ) {
-                // Playback Speed Pill
-                LiquidGlassBox(
+                Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { showSpeedDialog = true },
-                    shape = RoundedCornerShape(16.dp),
-                    blurRadius = 12.dp
+                        .fillMaxWidth()
+                        .padding(horizontal = LiquidSpacing.md, vertical = LiquidSpacing.sm),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Lyrics Button
+                    LiquidGlassButton(
+                        onClick = onOpenLyrics,
+                        shape = RoundedCornerShape(LiquidRadii.md),
+                        tintColor = Color.Transparent
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Speed,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "${playbackSpeed}x",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = LiquidSpacing.sm, vertical = LiquidSpacing.xs)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lyrics,
+                                contentDescription = "Lyrics",
+                                tint = LiquidAccentPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
-                        )
+                            Spacer(Modifier.width(LiquidSpacing.xs))
+                            Text(
+                                text = "Lyrics",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
+                        }
                     }
-                }
 
-                // Lyrics Button
-                LiquidGlassBox(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(onClick = onOpenLyrics),
-                    shape = RoundedCornerShape(16.dp),
-                    blurRadius = 12.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Queue Button
+                    LiquidGlassButton(
+                        onClick = onOpenQueue,
+                        shape = RoundedCornerShape(LiquidRadii.md),
+                        tintColor = Color.Transparent
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Lyrics,
-                            contentDescription = "Lyrics",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Lyrics",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = LiquidSpacing.sm, vertical = LiquidSpacing.xs)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                                contentDescription = "Queue",
+                                tint = LiquidAccentPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
-                        )
+                            Spacer(Modifier.width(LiquidSpacing.xs))
+                            Text(
+                                text = "Queue",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
+                        }
                     }
-                }
 
-                // Queue Button
-                IconButton(
-                    onClick = onOpenQueue,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = "Queue",
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-            }
-        }
-
-        // Speed Selector Dialog overlay
-        if (showSpeedDialog) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { showSpeedDialog = false },
-                contentAlignment = Alignment.Center
-            ) {
-                LiquidGlassBox(
-                    modifier = Modifier
-                        .padding(32.dp)
-                        .fillMaxWidth(0.85f),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    // Equalizer Button
+                    LiquidGlassButton(
+                        onClick = onOpenEqualizer,
+                        shape = RoundedCornerShape(LiquidRadii.md),
+                        tintColor = Color.Transparent
                     ) {
-                        Text(
-                            text = "Playback Speed",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = LiquidSpacing.sm, vertical = LiquidSpacing.xs)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Equalizer,
+                                contentDescription = "EQ",
+                                tint = LiquidAccentPrimary,
+                                modifier = Modifier.size(20.dp)
                             )
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-                        speeds.forEach { sp ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        onSetSpeed(sp)
-                                        showSpeedDialog = false
-                                    }
-                                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${sp}x",
-                                    color = if (playbackSpeed == sp) LiquidAccentPrimary else Color.White,
-                                    fontWeight = if (playbackSpeed == sp) FontWeight.Bold else FontWeight.Normal
-                                )
-                                if (playbackSpeed == sp) {
-                                    Text("✓", color = LiquidAccentPrimary, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                            Spacer(Modifier.width(LiquidSpacing.xs))
+                            Text(
+                                text = "EQ",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
+                        }
+                    }
+
+                    // Speed Button
+                    LiquidGlassButton(
+                        onClick = { showSpeedDialog = true },
+                        shape = RoundedCornerShape(LiquidRadii.md),
+                        tintColor = Color.Transparent
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = LiquidSpacing.sm, vertical = LiquidSpacing.xs)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Speed,
+                                contentDescription = "Speed",
+                                tint = LiquidAccentPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(LiquidSpacing.xs))
+                            Text(
+                                text = "${playbackSpeed}x",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
                         }
                     }
                 }
             }
+
+            Spacer(Modifier.height(LiquidSpacing.xl))
+        }
+
+        // Playback Speed Dialog
+        if (showSpeedDialog) {
+            AlertDialog(
+                onDismissRequest = { showSpeedDialog = false },
+                title = { Text("Playback Speed", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(LiquidSpacing.xs)) {
+                        listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f).forEach { speed ->
+                            val isCurrent = playbackSpeed == speed
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(LiquidRadii.sm))
+                                    .clickable {
+                                        onSetSpeed(speed)
+                                        showSpeedDialog = false
+                                    }
+                                    .padding(vertical = LiquidSpacing.sm, horizontal = LiquidSpacing.md),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${speed}x",
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isCurrent) LiquidAccentPrimary else (if (isDark) TextDarkPrimary else TextLightPrimary)
+                                )
+                                if (isCurrent) {
+                                    Text("Active", color = LiquidAccentPrimary, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSpeedDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
         }
     }
-}
-
-private fun formatMs(ms: Long): String {
-    val totalSeconds = (ms / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
 }

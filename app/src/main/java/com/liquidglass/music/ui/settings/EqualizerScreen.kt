@@ -1,6 +1,6 @@
 package com.liquidglass.music.ui.settings
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,7 +36,14 @@ import androidx.compose.ui.unit.sp
 import com.liquidglass.music.playback.AudioEffectsState
 import com.liquidglass.music.playback.EqualizerPreset
 import com.liquidglass.music.ui.components.LiquidGlassBox
+import com.liquidglass.music.ui.components.LiquidGlassCard
 import com.liquidglass.music.ui.theme.LiquidAccentPrimary
+import com.liquidglass.music.ui.theme.LiquidRadii
+import com.liquidglass.music.ui.theme.LiquidSpacing
+import com.liquidglass.music.ui.theme.TextDarkPrimary
+import com.liquidglass.music.ui.theme.TextDarkSecondary
+import com.liquidglass.music.ui.theme.TextLightPrimary
+import com.liquidglass.music.ui.theme.TextLightSecondary
 
 @Composable
 fun EqualizerScreen(
@@ -49,50 +57,72 @@ fun EqualizerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = isSystemInDarkTheme()
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = LiquidSpacing.xl)
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(LiquidSpacing.lg))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            IconButton(onClick = onBack, modifier = Modifier.size(38.dp)) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = if (isDark) Color.White else Color.Black
+                )
             }
-            Text(
-                text = "Equalizer & Effects",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(start = 8.dp)
-            )
+            Spacer(Modifier.width(LiquidSpacing.sm))
+            Column {
+                Text(
+                    text = "Equalizer & Effects",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.6).sp
+                    ),
+                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                )
+                Text(
+                    text = "DSP audio shaping and frequency tuning",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isDark) TextDarkSecondary else TextLightSecondary
+                )
+            }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(LiquidSpacing.md))
 
         LazyColumn(
-            contentPadding = PaddingValues(bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(bottom = 140.dp),
+            verticalArrangement = Arrangement.spacedBy(LiquidSpacing.lg)
         ) {
             // Master Toggle
             item {
-                LiquidGlassBox(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(LiquidSpacing.md),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Enable Audio Effects",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                        )
+                        Column {
+                            Text(
+                                text = "Enable Audio Effects",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                color = if (isDark) TextDarkPrimary else TextLightPrimary
+                            )
+                            Text(
+                                text = "Applies real-time DSP equalization to audio session",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isDark) TextDarkSecondary else TextLightSecondary
+                            )
+                        }
                         Switch(
                             checked = effectsState.isEnabled,
                             onCheckedChange = onToggleEnabled,
@@ -104,11 +134,15 @@ fun EqualizerScreen(
 
             // Presets
             item {
-                Text("Presets", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Presets",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                )
+                Spacer(Modifier.height(LiquidSpacing.xs))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(LiquidSpacing.sm)
                 ) {
                     EqualizerPreset.entries.forEach { preset ->
                         FilterChip(
@@ -127,13 +161,17 @@ fun EqualizerScreen(
 
             // Multi-band Equalizer Sliders
             item {
-                Text("Equalizer Bands", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
-                LiquidGlassBox(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(
+                    "Frequency Bands",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                )
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(LiquidSpacing.md),
+                        verticalArrangement = Arrangement.spacedBy(LiquidSpacing.md)
+                    ) {
                         effectsState.bands.forEach { band ->
                             Column {
                                 Row(
@@ -141,9 +179,19 @@ fun EqualizerScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     val freqLabel = if (band.centerFreqHz >= 1000) "${band.centerFreqHz / 1000} kHz" else "${band.centerFreqHz} Hz"
-                                    Text(freqLabel, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                    Text(
+                                        freqLabel,
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (isDark) TextDarkPrimary else TextLightPrimary
+                                    )
                                     val dB = band.currentLevelMilliBels / 100
-                                    Text("${if (dB > 0) "+" else ""}$dB dB", style = MaterialTheme.typography.labelSmall.copy(color = LiquidAccentPrimary))
+                                    Text(
+                                        "${if (dB > 0) "+" else ""}$dB dB",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = LiquidAccentPrimary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
                                 }
                                 Slider(
                                     value = band.currentLevelMilliBels.toFloat(),
@@ -163,55 +211,107 @@ fun EqualizerScreen(
 
             // Bass Boost & Virtualizer & Loudness Enhancer
             item {
-                Text("Enhancements", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-                Spacer(Modifier.height(8.dp))
-                LiquidGlassBox(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text(
+                    "Acoustic Enhancements",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                )
+                Spacer(Modifier.height(LiquidSpacing.xs))
+                LiquidGlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(LiquidSpacing.md),
+                        verticalArrangement = Arrangement.spacedBy(LiquidSpacing.md)
+                    ) {
                         // Bass Boost
                         Column {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Bass Boost", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                                Text("${effectsState.bassBoostStrength / 10}%", style = MaterialTheme.typography.labelSmall.copy(color = LiquidAccentPrimary))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Bass Boost",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                                )
+                                Text(
+                                    "${effectsState.bassBoostStrength / 10}%",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = LiquidAccentPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
                             }
                             Slider(
                                 value = effectsState.bassBoostStrength.toFloat(),
                                 onValueChange = { onBassBoostChange(it.toInt()) },
                                 valueRange = 0f..1000f,
                                 enabled = effectsState.isEnabled,
-                                colors = SliderDefaults.colors(thumbColor = LiquidAccentPrimary, activeTrackColor = LiquidAccentPrimary)
+                                colors = SliderDefaults.colors(
+                                    thumbColor = LiquidAccentPrimary,
+                                    activeTrackColor = LiquidAccentPrimary
+                                )
                             )
                         }
 
                         // Virtualizer
                         Column {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Virtualizer (3D Audio)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                                Text("${effectsState.virtualizerStrength / 10}%", style = MaterialTheme.typography.labelSmall.copy(color = LiquidAccentPrimary))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Spatial Virtualizer",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                                )
+                                Text(
+                                    "${effectsState.virtualizerStrength / 10}%",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = LiquidAccentPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
                             }
                             Slider(
                                 value = effectsState.virtualizerStrength.toFloat(),
                                 onValueChange = { onVirtualizerChange(it.toInt()) },
                                 valueRange = 0f..1000f,
                                 enabled = effectsState.isEnabled,
-                                colors = SliderDefaults.colors(thumbColor = LiquidAccentPrimary, activeTrackColor = LiquidAccentPrimary)
+                                colors = SliderDefaults.colors(
+                                    thumbColor = LiquidAccentPrimary,
+                                    activeTrackColor = LiquidAccentPrimary
+                                )
                             )
                         }
 
-                        // Loudness Enhancer
+                        // Loudness Gain
                         Column {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Loudness Enhancer (ReplayGain)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                                Text("${effectsState.loudnessEnhancerGainMb / 100} dB", style = MaterialTheme.typography.labelSmall.copy(color = LiquidAccentPrimary))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Loudness Enhancer",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = if (isDark) TextDarkPrimary else TextLightPrimary
+                                )
+                                Text(
+                                    "+${effectsState.loudnessEnhancerGainMb / 100} dB",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = LiquidAccentPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
                             }
                             Slider(
                                 value = effectsState.loudnessEnhancerGainMb.toFloat(),
                                 onValueChange = { onLoudnessGainChange(it.toInt()) },
                                 valueRange = 0f..1000f,
                                 enabled = effectsState.isEnabled,
-                                colors = SliderDefaults.colors(thumbColor = LiquidAccentPrimary, activeTrackColor = LiquidAccentPrimary)
+                                colors = SliderDefaults.colors(
+                                    thumbColor = LiquidAccentPrimary,
+                                    activeTrackColor = LiquidAccentPrimary
+                                )
                             )
                         }
                     }

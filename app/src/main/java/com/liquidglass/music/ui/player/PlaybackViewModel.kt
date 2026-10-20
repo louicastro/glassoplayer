@@ -97,6 +97,12 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
 
         _isPlaying.value = controller.isPlaying
         _playbackSpeed.value = controller.playbackParameters.speed
+        _isShuffleEnabled.value = controller.shuffleModeEnabled
+        _repeatMode.value = when (controller.repeatMode) {
+            Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+            Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+            else -> RepeatMode.OFF
+        }
         updateCurrentTrack(controller.currentMediaItem)
 
         controller.addListener(object : Player.Listener {
@@ -110,6 +116,18 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
 
             override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
                 _playbackSpeed.value = playbackParameters.speed
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                _isShuffleEnabled.value = shuffleModeEnabled
+            }
+
+            override fun onRepeatModeChanged(mode: Int) {
+                _repeatMode.value = when (mode) {
+                    Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+                    Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+                    else -> RepeatMode.OFF
+                }
             }
         })
     }
@@ -212,6 +230,36 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
         val controller = mediaController ?: return
         controller.playbackParameters = PlaybackParameters(speed)
         _playbackSpeed.value = speed
+    }
+
+    fun toggleShuffle() {
+        val controller = mediaController ?: return
+        val newShuffle = !controller.shuffleModeEnabled
+        controller.shuffleModeEnabled = newShuffle
+        _isShuffleEnabled.value = newShuffle
+    }
+
+    fun cycleRepeatMode() {
+        val controller = mediaController ?: return
+        val nextMode = when (_repeatMode.value) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+        _repeatMode.value = nextMode
+        controller.repeatMode = when (nextMode) {
+            RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+            RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+            RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+        }
+    }
+
+    fun skipToQueueIndex(index: Int) {
+        val controller = mediaController ?: return
+        if (index in 0 until controller.mediaItemCount) {
+            controller.seekToDefaultPosition(index)
+            controller.play()
+        }
     }
 
     fun toggleFavorite() {

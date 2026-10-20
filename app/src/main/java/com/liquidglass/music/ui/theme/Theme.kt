@@ -1,6 +1,5 @@
 package com.liquidglass.music.ui.theme
 
-import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -13,27 +12,32 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 val LocalReducedMotion = compositionLocalOf { false }
+val LocalIsDarkTheme = compositionLocalOf { true }
 
 private val DarkColorScheme = darkColorScheme(
     primary = LiquidAccentPrimary,
     secondary = LiquidAccentSecondary,
-    background = Color(0xFF0A0B10),
+    background = GlassDarkBackdrop,
     surface = GlassDarkSurface,
+    surfaceVariant = GlassDarkSurfaceElevated,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onBackground = TextDarkPrimary,
-    onSurface = TextDarkPrimary
+    onSurface = TextDarkPrimary,
+    onSurfaceVariant = TextDarkSecondary
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = LiquidAccentPrimary,
     secondary = LiquidAccentSecondary,
-    background = Color(0xFFF7F8FC),
+    background = GlassLightBackdrop,
     surface = GlassLightSurface,
+    surfaceVariant = GlassLightSurfaceElevated,
     onPrimary = Color.White,
     onSecondary = Color.White,
     onBackground = TextLightPrimary,
-    onSurface = TextLightPrimary
+    onSurface = TextLightPrimary,
+    onSurfaceVariant = TextLightSecondary
 )
 
 @Composable
@@ -56,7 +60,8 @@ fun LiquidMusicTheme(
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     CompositionLocalProvider(
-        LocalReducedMotion provides isReducedMotion
+        LocalReducedMotion provides isReducedMotion,
+        LocalIsDarkTheme provides darkTheme
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
