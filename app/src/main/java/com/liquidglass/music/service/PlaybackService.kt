@@ -141,7 +141,39 @@ class PlaybackService : MediaSessionService() {
     }
 
     private inner class MediaSessionCallback : MediaSession.Callback {
-        // Default callback handles standard MediaController commands seamlessly
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo
+        ): MediaSession.ConnectionResult {
+            val isOurApp = controller.packageName == packageName
+
+            val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                .build()
+
+            val sessionCommands = if (isOurApp) {
+                MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon().build()
+            } else {
+                MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                    .remove(androidx.media3.session.SessionCommand.COMMAND_CODE_SESSION_SET_RATING)
+                    .build()
+            }
+
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                .setAvailablePlayerCommands(playerCommands)
+                .setAvailableSessionCommands(sessionCommands)
+                .build()
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: androidx.media3.session.SessionCommand,
+            args: android.os.Bundle
+        ): com.google.common.util.concurrent.ListenableFuture<androidx.media3.session.SessionResult> {
+            return com.google.common.util.concurrent.Futures.immediateFuture(
+                androidx.media3.session.SessionResult(androidx.media3.session.SessionError.ERROR_NOT_SUPPORTED)
+            )
+        }
     }
 
     override fun onDestroy() {

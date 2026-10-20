@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.liquidglass.music.playback
 
 import android.media.audiofx.BassBoost
@@ -35,6 +37,7 @@ data class AudioEffectsState(
     val crossfadeDurationSeconds: Int = 0 // 0 = off, 1-10s
 )
 
+@Suppress("DEPRECATION")
 class AudioEffectsController {
 
     private var equalizer: Equalizer? = null

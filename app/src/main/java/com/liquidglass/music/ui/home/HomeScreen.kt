@@ -25,7 +25,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -129,7 +129,7 @@ fun HomeScreen(
         // Frequently Played / Top Tracks
         if (frequentlyPlayed.isNotEmpty()) {
             item {
-                SectionHeader(title = "Frequently Played", icon = Icons.Default.PlaylistPlay)
+                SectionHeader(title = "Frequently Played", icon = Icons.AutoMirrored.Filled.PlaylistPlay)
                 Column(
                     modifier = Modifier.padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)

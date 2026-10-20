@@ -1,4 +1,4 @@
-# Liquid Glass Offline Music Player (iOS 26-Inspired for Android)
+# Glassoplayer (iOS 26-Inspired Offline Music Player for Android)
 
 An offline-first music player engineered with an iOS 26-inspired Liquid Glass design language, native Android Media3 foreground playback, real-time synchronized lyrics (embedded, sidecar, imported, and user-edited), multi-band equalizer, and queue persistence.
 
@@ -6,8 +6,9 @@ An offline-first music player engineered with an iOS 26-inspired Liquid Glass de
 
 ## Target Platform & Rationale
 
-- **Target Platform**: Android (API 26+ / Android 8.0 Oreo up to Android 15 / API 35)
-- **Rationale**: Mandated by project specifications. The Android ecosystem provides hardware audio decode capabilities, `Media3` (`ExoPlayer`) integration with system media sessions, background audio services (`MediaSessionService`), and hardware-accelerated blur via `RenderEffect` (API 31+) with graceful translucent bevel fallback on earlier versions.
+- **Target Platform**: Android (API 26+ / Android 8.0 Oreo up to Android 16 / API 36)
+- **SDK Levels**: `compileSdk = 36`, `targetSdk = 36`, `minSdk = 26`
+- **Rationale**: Mandated by project specifications and Google Play compatibility standards. The Android ecosystem provides hardware audio decode capabilities, `Media3` (`ExoPlayer`) integration with system media sessions, background audio services (`MediaSessionService`), and hardware-accelerated blur via `RenderEffect` (API 31+) with graceful translucent bevel fallback on earlier versions.
 - **Language & Frameworks**: Kotlin 2.0.20, Jetpack Compose with Material 3, Media3 1.4.1, Room 2.6.1 with KSP, AndroidX Palette, Coil Compose, and Kotlinx Coroutines.
 
 ---

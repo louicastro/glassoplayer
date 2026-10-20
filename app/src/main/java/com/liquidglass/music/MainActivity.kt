@@ -32,15 +32,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.lifecycle.lifecycleScope
+import android.media.MediaMetadataRetriever
+import android.provider.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -98,7 +104,7 @@ enum class NavigationItem(val label: String, val icon: ImageVector) {
     LISTEN_NOW("Listen Now", Icons.Default.Home),
     LIBRARY("Library", Icons.Default.LibraryMusic),
     SEARCH("Search", Icons.Default.Search),
-    PLAYLISTS("Playlists", Icons.Default.PlaylistPlay),
+    PLAYLISTS("Playlists", Icons.AutoMirrored.Filled.PlaylistPlay),
     SETTINGS("Settings", Icons.Default.Settings)
 }
 
@@ -124,12 +130,86 @@ class MainActivity : ComponentActivity() {
             // Service startup fallback
         }
 
+        handleIncomingIntent(intent)
+
         setContent {
             LiquidMusicTheme {
                 MainAppScreen(
                     playbackViewModel = playbackViewModel,
                     lyricsViewModel = lyricsViewModel
                 )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        if (intent == null || intent.action != Intent.ACTION_VIEW) return
+        val uri = intent.data ?: return
+
+        // Security check: validate URI scheme strictly
+        val scheme = uri.scheme?.lowercase()
+        if (scheme != "content" && scheme != "file") {
+            return
+        }
+
+        // Additional validation for file URIs: prevent path traversal or null bytes
+        if (scheme == "file") {
+            val path = uri.path ?: return
+            if (path.contains("\u0000") || path.contains("..")) {
+                return
+            }
+            try {
+                val canonical = File(path).canonicalPath
+                val appDataDir = applicationInfo.dataDir
+                if (canonical.startsWith(appDataDir) && !canonical.startsWith("$appDataDir/cache")) {
+                    return
+                }
+            } catch (e: Exception) {
+                return
+            }
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val mmr = MediaMetadataRetriever()
+                mmr.setDataSource(this@MainActivity, uri)
+                val title = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                    ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Imported Track"
+                val artist = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST) ?: "Unknown Artist"
+                val album = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM) ?: "Unknown Album"
+                val durationStr = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                val durationMs = durationStr?.toLongOrNull() ?: 0L
+                mmr.release()
+
+                val trackId = "intent_${uri.toString().hashCode()}"
+                val importedTrack = TrackEntity(
+                    id = trackId,
+                    fingerprint = trackId,
+                    uri = uri.toString(),
+                    path = uri.path ?: uri.toString(),
+                    title = title,
+                    artist = artist,
+                    album = album,
+                    durationMs = durationMs,
+                    mimeType = intent.type ?: "audio/*",
+                    format = uri.lastPathSegment?.substringAfterLast('.', "audio")?.uppercase() ?: "AUDIO",
+                    fileSizeBytes = 0L,
+                    dateAdded = System.currentTimeMillis(),
+                    dateModified = System.currentTimeMillis(),
+                    isAvailable = true
+                )
+
+                val database = (applicationContext as LiquidMusicApplication).database
+                database.trackDao().insertOrUpdateTracks(listOf(importedTrack))
+                playbackViewModel.playTrack(importedTrack)
+            } catch (e: Exception) {
+                // Graceful fallback for unreadable audio files
             }
         }
     }
@@ -146,20 +226,42 @@ fun MainAppScreen(
     val database = (context.applicationContext as LiquidMusicApplication).database
 
     // Permissions State
+    val audioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
     var hasAudioPermission by remember {
         mutableStateOf(
+            ContextCompat.checkSelfPermission(context, audioPermission) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    var hasNotificationPermission by remember {
+        mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
             } else {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+                true
             }
         )
     }
 
+    var permissionDeniedOnce by remember { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { perms ->
-        hasAudioPermission = perms.values.any { it }
+        // CRITICAL FIX: Explicitly evaluate audioPermission specifically rather than perms.values.any { it }
+        // to prevent notification permission grant from being mistaken for audio-library permission!
+        hasAudioPermission = perms[audioPermission] == true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            hasNotificationPermission = perms[Manifest.permission.POST_NOTIFICATIONS] == true
+        }
+        if (!hasAudioPermission) {
+            permissionDeniedOnce = true
+        }
     }
 
     // Trigger initial scan if permission granted
@@ -202,6 +304,20 @@ fun MainAppScreen(
     val lyricUiState by lyricsViewModel.lyricState.collectAsState()
     val isEditorActive by lyricsViewModel.isEditorActive.collectAsState()
     val editorLines by lyricsViewModel.editorLines.collectAsState()
+
+    // Predictive back navigation: safely dismiss topmost sheet/overlay before exiting
+    BackHandler(enabled = isEditorActive) {
+        lyricsViewModel.cancelEditor()
+    }
+    BackHandler(enabled = !isEditorActive && isLyricsScreenOpen) {
+        isLyricsScreenOpen = false
+    }
+    BackHandler(enabled = !isEditorActive && !isLyricsScreenOpen && isNowPlayingExpanded) {
+        isNowPlayingExpanded = false
+    }
+    BackHandler(enabled = !isEditorActive && !isLyricsScreenOpen && !isNowPlayingExpanded && isEqualizerScreenOpen) {
+        isEqualizerScreenOpen = false
+    }
 
     // Update lyrics state when track or position changes
     LaunchedEffect(currentTrack) {
@@ -305,12 +421,12 @@ fun MainAppScreen(
                         )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "Storage Permission Required",
+                            text = "Audio Permission Required",
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Liquid Music Player is 100% offline and requires access to your device's audio files to scan and play your local library.",
+                            text = "Glassoplayer is 100% offline and requires access to your device's audio files to scan and play your local music library. Your files are never uploaded or shared.",
                             style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onBackground.copy(0.7f)),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -318,15 +434,28 @@ fun MainAppScreen(
                         Button(
                             onClick = {
                                 val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.POST_NOTIFICATIONS)
+                                    arrayOf(audioPermission, Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
-                                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+                                    arrayOf(audioPermission)
                                 }
                                 permissionLauncher.launch(permissions)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = LiquidAccentPrimary)
                         ) {
                             Text("Grant Permission")
+                        }
+                        if (permissionDeniedOnce) {
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                        data = Uri.fromParts("package", context.packageName, null)
+                                    }
+                                    context.startActivity(intent)
+                                }
+                            ) {
+                                Text("Open App Settings")
+                            }
                         }
                     }
                 }

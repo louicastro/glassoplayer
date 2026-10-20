@@ -76,7 +76,7 @@ fun Modifier.liquidGlass(
     .background(
         brush = Brush.verticalGradient(
             colors = if (isDark) {
-                listOf(Color(0x33FFFFFF), Color(0x1A1B22), Color(0x2E1B22))
+                listOf(Color(0x33FFFFFF), Color(0xFF1A1B22), Color(0xFF2E1B22))
             } else {
                 listOf(Color(0xE6FFFFFF), Color(0xCCF0F4F8))
             }

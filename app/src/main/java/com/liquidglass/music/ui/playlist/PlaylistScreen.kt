@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -97,7 +97,7 @@ fun PlaylistScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            imageVector = Icons.Default.PlaylistPlay,
+                            imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                             contentDescription = null,
                             tint = Color.White.copy(0.4f),
                             modifier = Modifier.size(64.dp)
@@ -139,7 +139,7 @@ fun PlaylistScreen(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.PlaylistPlay,
+                                        imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                                         contentDescription = null,
                                         tint = LiquidAccentPrimary,
                                         modifier = Modifier.size(32.dp)

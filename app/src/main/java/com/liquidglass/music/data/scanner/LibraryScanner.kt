@@ -116,7 +116,7 @@ class LibraryScanner(
                     existingLyric.sourceType == LyricSourceType.SIDECAR.name ||
                     existingLyric.sourceType == LyricSourceType.EMBEDDED.name
                 ) {
-                    if (hasSidecarLyrics && sidecarLyricFile != null) {
+                    if (sidecarLyricFile != null) {
                         try {
                             val lyricContent = sidecarLyricFile.readText(Charsets.UTF_8)
                             val isSynced = lyricContent.contains(Regex("""\[\d{1,2}:\d{2}"""))

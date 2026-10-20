@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Back up user created playlists, favorites, and user-edited lyrics -->
+    <include domain="database" path="liquid_music_database" />
+    <include domain="sharedpref" path="." />
+</full-backup-content>

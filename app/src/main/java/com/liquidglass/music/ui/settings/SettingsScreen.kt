@@ -42,6 +42,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Policy
 import com.liquidglass.music.service.SleepTimerState
 import com.liquidglass.music.ui.components.LiquidGlassBox
 import com.liquidglass.music.ui.theme.LiquidAccentPrimary
@@ -58,7 +62,9 @@ fun SettingsScreen(
     onRebuildLibraryIndex: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var showCodecDialog by remember { mutableStateOf(false) }
+    var showPrivacyDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -231,6 +237,22 @@ fun SettingsScreen(
                             text = "No internet permissions declared in AndroidManifest. No tracking, telemetry, or analytics. Works in Airplane Mode without accounts or subscription.",
                             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface.copy(0.75f))
                         )
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showPrivacyDialog = true }
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Policy, contentDescription = null, tint = LiquidAccentPrimary, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.size(8.dp))
+                                Text("Privacy Policy & Data Safety", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
             }
@@ -261,6 +283,44 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+        // Privacy Policy & Data Safety Dialog
+        if (showPrivacyDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showPrivacyDialog = false },
+                title = { Text("Privacy Policy & Data Safety") },
+                text = {
+                    Column(modifier = Modifier.padding(4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Glassoplayer Privacy Commitment:", fontWeight = FontWeight.Bold, color = Color(0xFF4ECCA3))
+                        Text(
+                            "• 100% Offline: Zero internet permissions requested or declared in AndroidManifest.xml.\n\n" +
+                            "• Zero Data Collection: No personal data, telemetry, analytics, crash logs, or identifiers are collected, tracked, or shared with third parties.\n\n" +
+                            "• Local Storage Only: Audio and storage permissions are strictly utilized on-device to index audio files and lyrics.\n\n" +
+                            "• Android System Backup: If the user enables Android OS cloud backup in device settings, Android OS encrypts app preferences and local playlists in Google Drive according to the user's Android Google account settings; Glassoplayer does not operate any cloud servers.",
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/louicastro/glassoplayer/blob/main/PRIVACY_POLICY.md"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            // Fallback
+                        }
+                    }) {
+                        Text("Online Policy (GitHub)")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPrivacyDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
         }
 
         // Codec Support Dialog
